@@ -154,11 +154,11 @@ export default function App() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-4xl bg-white/6 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/6"
       >
-        <h1 className="text-4xl font-bold text-white mb-6 text-center">
+        <h1 className="text-3xl md:text-4xl font-bold text-white mb-6 text-center">
           Universal Media Downloader
         </h1>
 
-        <div className="flex gap-3 mb-4">
+        <div className="flex gap-3 mb-4 flex-wrap justify-center items-center">
           <input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
