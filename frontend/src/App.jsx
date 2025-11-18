@@ -11,7 +11,7 @@ export default function App() {
   const [thumbnail, setThumbnail] = useState("");
   const [progress, setProgress] = useState(0);
 
-  const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API = import.meta.env.VITE_API_URL || "https://remarkable-smile-production.up.railway.app";
 
   const fetchFormats = async () => {
     if (!url) return;
