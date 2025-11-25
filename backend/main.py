@@ -29,41 +29,38 @@ def get_formats(url: str = Query(...)):
     """
     Return ONE merged video+audio format per resolution.
     """
-		try:
+    try:
         ydl_opts = {
             "quiet": True,
             "skip_download": True,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android"],   # ← حل مشكلة "Sign in"
+                    "player_client": ["android"],   # مهم جداً
                 }
             },
             "http_headers": {
                 "User-Agent": "com.google.android.youtube/18.41.35 (Linux; U; Android 13)"
             }
         }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
         thumbnail = info.get("thumbnail")
-
-        formats_map = {}  # resolution → bestvideo format_id
+        formats_map = {}
 
         for f in info.get("formats", []):
-            # نختار فقط الفيديوهات اللي فيها فيديو (height)
             if not f.get("height"):
                 continue
 
             height = f.get("height")
             ext = f.get("ext")
 
-            # نختار mp4 فقط
             if ext != "mp4":
                 continue
 
             size = f.get("filesize") or f.get("filesize_approx") or 0
 
-            # ناخد أفضل واحد لكل جودة
             if height not in formats_map or size > formats_map[height]["size"]:
                 formats_map[height] = {
                     "id": f["format_id"],
@@ -72,10 +69,7 @@ def get_formats(url: str = Query(...)):
                     "size": size,
                 }
 
-        # حوّل الماب لليست
         merged_formats_list = list(formats_map.values())
-
-        # ترتيب حسب الجودة
         merged_formats_list.sort(key=lambda x: int(x["resolution"].split("x")[1]))
 
         return {
@@ -86,7 +80,6 @@ def get_formats(url: str = Query(...)):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 @app.get("/download")
 def download(
