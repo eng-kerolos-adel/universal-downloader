@@ -1,8 +1,8 @@
 {
   "version": 2,
   "functions": {
-    "./main.py": {
-      "runtime": "python3.12",
+    "api/main.py": {
+      "runtime": "vercel-python@3.12",
       "maxDuration": 60
     }
   }
