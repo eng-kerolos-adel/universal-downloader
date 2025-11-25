@@ -24,6 +24,9 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/*?:"<>|]', "", name)
 
 
+COOKIE_PATH = os.path.join(os.path.dirname(__file__), "youtube_cookies.txt")
+
+
 @app.get("/formats")
 def get_formats(url: str = Query(...)):
     """
@@ -33,13 +36,14 @@ def get_formats(url: str = Query(...)):
         ydl_opts = {
             "quiet": True,
             "skip_download": True,
+            "cookiefile": COOKIE_PATH,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android"],   # مهم جداً
+                    "player_client": ["android"],   # bypass bot check
                 }
             },
             "http_headers": {
-                "User-Agent": "com.google.android.youtube/18.41.35 (Linux; U; Android 13)"
+                "User-Agent": "com.google.android.youtube/18.41.35 (Linux; Android 13)"
             }
         }
 
@@ -47,20 +51,24 @@ def get_formats(url: str = Query(...)):
             info = ydl.extract_info(url, download=False)
 
         thumbnail = info.get("thumbnail")
-        formats_map = {}
+
+        formats_map = {}  # resolution → bestvideo format_id
 
         for f in info.get("formats", []):
+            # نختار فقط الفيديوهات اللي فيها فيديو (height)
             if not f.get("height"):
                 continue
 
             height = f.get("height")
             ext = f.get("ext")
 
+            # نختار mp4 فقط
             if ext != "mp4":
                 continue
 
             size = f.get("filesize") or f.get("filesize_approx") or 0
 
+            # ناخد أفضل واحد لكل جودة
             if height not in formats_map or size > formats_map[height]["size"]:
                 formats_map[height] = {
                     "id": f["format_id"],
@@ -69,7 +77,10 @@ def get_formats(url: str = Query(...)):
                     "size": size,
                 }
 
+        # حوّل الماب لليست
         merged_formats_list = list(formats_map.values())
+
+        # ترتيب حسب الجودة
         merged_formats_list.sort(key=lambda x: int(x["resolution"].split("x")[1]))
 
         return {
@@ -80,6 +91,7 @@ def get_formats(url: str = Query(...)):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.get("/download")
 def download(
@@ -96,18 +108,19 @@ def download(
     try:
         ydl_opts = {
             "quiet": True,
-            "format": f"{format_id}+bestaudio/best",   # ← هنا السحر الحقيقي
+            "format": f"{format_id}+bestaudio/best",
             "merge_output_format": "mp4",
             "outtmpl": outtmpl,
             "no_warnings": True,
-						"http_headers": {
-        "User-Agent": "com.google.android.youtube/18.41.35 (Linux; U; Android 13)"
-    },
-    "extractor_args": {
-        "youtube": {
-            "player_client": ["android"],    # أهم جزء!
-        }
-    }
+            "cookiefile": COOKIE_PATH,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android"],   
+                }
+            },
+            "http_headers": {
+                "User-Agent": "com.google.android.youtube/18.41.35 (Linux; Android 13)"
+            }
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
