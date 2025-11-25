@@ -6,12 +6,15 @@ import { motion } from "framer-motion";
 export default function App() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [formats, setFormats] = useState([]);
   const [title, setTitle] = useState("");
   const [thumbnail, setThumbnail] = useState("");
   const [progress, setProgress] = useState(0);
 
-  const API = import.meta.env.VITE_API_URL || "https://remarkable-smile-production.up.railway.app";
+  const API =
+    import.meta.env.VITE_API_URL ||
+    "https://remarkable-smile-production.up.railway.app";
 
   const fetchFormats = async () => {
     if (!url) return;
@@ -66,7 +69,7 @@ export default function App() {
 
   const downloadFile = async (formatId) => {
     if (!url) return;
-    setLoading(true);
+    setDownloading(true);
     setProgress(0);
 
     const apiUrl = `${API}/download?url=${encodeURIComponent(
@@ -135,7 +138,7 @@ export default function App() {
       alert("Error downloading file: " + (err.message || err));
     } finally {
       setTimeout(() => setProgress(0), 600);
-      setLoading(false);
+      setDownloading(false);
     }
   };
 
@@ -162,6 +165,11 @@ export default function App() {
           <input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                fetchFormats();
+              }
+            }}
             placeholder="Paste media URL here..."
             className="flex-1 px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
@@ -173,7 +181,7 @@ export default function App() {
           </button>
         </div>
 
-        {loading && progress > 0 && (
+        {downloading && progress > 0 && (
           <div className="mb-4">
             <div className="w-full bg-white/20 rounded-full h-3">
               <div
@@ -200,6 +208,21 @@ export default function App() {
           </div>
         )}
 
+        <div
+          className={`${
+            loading || downloading ? "flex" : "hidden"
+          } items-center justify-center mt-6 mb-6`}
+        >
+          {loading && (
+            <p className="text-white font-semibold text-xl">Loading formats…</p>
+          )}
+          {downloading && (
+            <p className="text-white font-semibold text-xl">
+              Downloading Your File...
+            </p>
+          )}
+        </div>
+
         {formats.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {formats.map((f) => (
@@ -207,14 +230,14 @@ export default function App() {
                 key={f.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-white/8 rounded-xl border border-white/8 text-white"
+                className={`p-4 bg-white/8 rounded-xl border border-white/8 text-white ${
+                  f.size === 0 ? "hidden" : "visible"
+                }`}
               >
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
-                    <h3 className="font-bold">Format: {f.id}</h3>
-                    <p className="text-sm">
-                      Type: {f.ext} • Resolution: {f.resolution || "N/A"}
-                    </p>
+                    <h3 className="font-bold">Resolution: {f.resolution}</h3>
+                    <p className="text-sm">Type: {f.ext}</p>
                     <p className="text-sm">Size: {niceSize(f.size)}</p>
                   </div>
                   <div className="w-28 text-right">
