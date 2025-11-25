@@ -19,19 +19,38 @@ app.add_middleware(
     expose_headers=["Content-Disposition", "Content-Type", "Content-Length"],
 )
 
-
 def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/*?:"<>|]', "", name)
 
 
-COOKIE_PATH = os.path.join(os.path.dirname(__file__), "youtube_cookies.txt")
+# =========  1) Cookie Handling for Vercel  =========
 
+# original cookie file inside project
+COOKIE_SRC = os.path.join(os.path.dirname(__file__), "youtube_cookies.txt")
+
+# runtime cookie location (writable on Vercel)
+COOKIE_PATH = "/tmp/youtube_cookies.txt"
+
+# copy at startup
+def ensure_cookies():
+    if not os.path.exists(COOKIE_PATH):
+        try:
+            shutil.copyfile(COOKIE_SRC, COOKIE_PATH)
+            print("Cookies copied to /tmp successfully.")
+        except Exception as e:
+            print("Cookie copy error:", e)
+
+ensure_cookies()
+
+
+# =========  2) /formats Endpoint  =========
 
 @app.get("/formats")
 def get_formats(url: str = Query(...)):
     """
     Return ONE merged video+audio format per resolution.
     """
+
     try:
         ydl_opts = {
             "quiet": True,
@@ -39,7 +58,7 @@ def get_formats(url: str = Query(...)):
             "cookiefile": COOKIE_PATH,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android"],   # bypass bot check
+                    "player_client": ["android"],
                 }
             },
             "http_headers": {
@@ -51,24 +70,20 @@ def get_formats(url: str = Query(...)):
             info = ydl.extract_info(url, download=False)
 
         thumbnail = info.get("thumbnail")
-
-        formats_map = {}  # resolution → bestvideo format_id
+        formats_map = {}
 
         for f in info.get("formats", []):
-            # نختار فقط الفيديوهات اللي فيها فيديو (height)
             if not f.get("height"):
                 continue
 
             height = f.get("height")
             ext = f.get("ext")
 
-            # نختار mp4 فقط
             if ext != "mp4":
                 continue
 
             size = f.get("filesize") or f.get("filesize_approx") or 0
 
-            # ناخد أفضل واحد لكل جودة
             if height not in formats_map or size > formats_map[height]["size"]:
                 formats_map[height] = {
                     "id": f["format_id"],
@@ -77,10 +92,7 @@ def get_formats(url: str = Query(...)):
                     "size": size,
                 }
 
-        # حوّل الماب لليست
         merged_formats_list = list(formats_map.values())
-
-        # ترتيب حسب الجودة
         merged_formats_list.sort(key=lambda x: int(x["resolution"].split("x")[1]))
 
         return {
@@ -93,6 +105,9 @@ def get_formats(url: str = Query(...)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+
+# =========  3) /download Endpoint  =========
+
 @app.get("/download")
 def download(
     url: str = Query(...),
@@ -100,8 +115,9 @@ def download(
     background_tasks: BackgroundTasks = None
 ):
     """
-    Download selected format_id as: bestvideo[format_id]+bestaudio merged into mp4
+    Download selected video_id + bestaudio merged into mp4.
     """
+
     tmp_dir = tempfile.mkdtemp(prefix="udl_")
     outtmpl = os.path.join(tmp_dir, "%(title)s.%(ext)s")
 
@@ -115,7 +131,7 @@ def download(
             "cookiefile": COOKIE_PATH,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android"],   
+                    "player_client": ["android"],
                 }
             },
             "http_headers": {
@@ -127,14 +143,15 @@ def download(
             info = ydl.extract_info(url, download=True)
 
         req = info.get("requested_downloads")
+
         if not req or not req[0].get("filepath"):
             raise Exception("File not found after download.")
 
         file_path = req[0]["filepath"]
+
         original_name = sanitize_filename(os.path.basename(file_path))
         encoded_name = quote(original_name)
 
-        ext = os.path.splitext(original_name)[1].lower()
         mime = "video/mp4"
 
         if background_tasks:
