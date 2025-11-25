@@ -29,8 +29,20 @@ def get_formats(url: str = Query(...)):
     """
     Return ONE merged video+audio format per resolution.
     """
-    try:
-        with yt_dlp.YoutubeDL({"quiet": True, "skip_download": True}) as ydl:
+		try:
+        ydl_opts = {
+            "quiet": True,
+            "skip_download": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android"],   # ← حل مشكلة "Sign in"
+                }
+            },
+            "http_headers": {
+                "User-Agent": "com.google.android.youtube/18.41.35 (Linux; U; Android 13)"
+            }
+        }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
         thumbnail = info.get("thumbnail")
