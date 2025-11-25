@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "functions": {
+    "api/main.py": {
+      "runtime": "python3.11",
+      "maxDuration": 60
+    }
+  }
+}
