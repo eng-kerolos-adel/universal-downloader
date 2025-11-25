@@ -95,6 +95,14 @@ def download(
             "merge_output_format": "mp4",
             "outtmpl": outtmpl,
             "no_warnings": True,
+						"http_headers": {
+        "User-Agent": "com.google.android.youtube/18.41.35 (Linux; U; Android 13)"
+    },
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android"],    # أهم جزء!
+        }
+    }
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
